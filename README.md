@@ -1,6 +1,6 @@
 # DocDiff
 
-A web application for comparing two Microsoft Word (`.docx`) documents with deterministic, byte-level accuracy. DocDiff surfaces every content and formatting change at the paragraph and character level using a structural diffing algorithm, then uses an LLM to generate a plain-English summary of the findings.
+A web application for comparing three Microsoft Word (`.docx`) documents — a **Template**, a **Version 1**, and a **Version 2** — with deterministic, structural accuracy. DocDiff surfaces every content, formatting, and metadata change across all three comparison views, then uses an AI agent to interpret significance, assign risk tiers, and generate a plain-English executive summary. An in-app chat interface lets you interrogate the findings without switching context.
 
 **Live demo:** _coming soon — deploy instructions below_
 
@@ -9,11 +9,11 @@ A web application for comparing two Microsoft Word (`.docx`) documents with dete
 ## Setup
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/thovious/docdiff.git
 cd docdiff
 npm install
 cp .env.example .env.local
-# Add your ANTHROPIC_API_KEY to .env.local
+# Edit .env.local and add your ANTHROPIC_API_KEY
 npm run dev
 ```
 
@@ -21,43 +21,100 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
+## Three-Document Comparison Model
+
+DocDiff produces **three independent comparison views**, each fully diffed:
+
+| View | Left | Right | Purpose |
+|---|---|---|---|
+| **Template → V2** | Template | Version 2 | Net deviation from the original template in the final version |
+| **V1 → V2** | Version 1 | Version 2 | What changed between negotiation rounds |
+| **Template → V1** | Template | Version 1 | What was changed from the template in the first draft |
+
+Each view is a complete `DiffResult` computed independently. The UI lets you switch views via tabs without re-running analysis.
+
+---
+
 ## Architecture
 
 ```
 Browser
-  ├── JSZip + DOMParser  →  ParagraphNode[]   (OOXML structural parse)
-  ├── mammoth.js         →  rawText            (plain-text for AI context)
-  └── Myers LCS engine   →  ChangeRecord[]     (deterministic diff)
-        ├── documentDiff   (paragraph-level edit ops)
-        ├── inlineDiff     (word-level segments)
-        └── formatDiff     (style / indent / font changes)
+  ├── JSZip + DOMParser  →  ParagraphNode[] × 3    (OOXML structural parse)
+  ├── mammoth.js         →  rawText × 3             (plain-text)
+  ├── metadataExtractor  →  DocMetadata × 3         (filename, author, revision…)
+  └── threeWayDiff engine →  ThreeWayDiffResult
+        ├── documentDiff × 3   (paragraph-level LCS diff)
+        ├── inlineDiff         (word-level segments for modified paragraphs)
+        ├── formatDiff         (style / indent / font changes)
+        └── metadataDiff       (filename, title, author, revision)
 
-Server (Next.js API Route)
-  └── POST /api/summarize
-        ├── Validates + caps payload (≤ 20 change summaries)
-        └── Anthropic API  →  plain-English InsightSummary
+Server (Next.js API Routes)
+  ├── POST /api/analyze
+  │     ├── Validates + caps payload (≤ 40 changes, structured summaries only)
+  │     ├── Calls Claude (single-pass agent)
+  │     └── Returns AnalysisResult { executiveSummary, annotations, riskFlags, priorityChanges }
+  └── POST /api/chat
+        ├── Builds compact context (≤ 3,000 tokens)
+        ├── Calls Claude with streaming enabled
+        └── Returns ReadableStream (token-by-token)
 ```
 
-**Key design decision:** All document parsing and diffing runs entirely in the browser using the Web File API. No document content is ever sent to any server. The server-side API route receives only a structured, anonymised list of change summaries — never raw document text. This makes the tool safe for confidential documents.
+**Key design decisions:**
+
+1. **All parsing and diffing runs in the browser.** No document content is ever sent to any server. The API routes receive only structured change summaries — never raw document text.
+2. **The AI never performs change detection.** Claude interprets changes the diff engine has already found. Every change surfaced is a verified structural difference.
+3. **Chat is grounded.** The `/api/chat` context contains only the diff summary and agent annotations — not general knowledge about the topic.
+
+---
+
+## Privacy Model
+
+DocDiff is designed for confidential documents:
+
+- Files are parsed in the browser using the Web File API.
+- `/api/analyze` receives only structured `ChangeRecord` summaries (IDs, types, locations, short summaries). No paragraph text is included.
+- `/api/chat` receives structured context (change summaries + annotations). Raw document text is never sent.
+- No document content is stored anywhere. All state is in-memory per session.
+- Chat history is session-only — nothing is persisted.
 
 ---
 
 ## Scripts
 
 ```bash
-npm run dev           # Start local dev server (http://localhost:3000)
-npm run build         # Production build
-npm run test          # Vitest unit tests
-npm run test:coverage # Coverage report
-npm run lint          # ESLint
-npm run typecheck     # tsc --noEmit
+npm run dev            # Start local dev server (http://localhost:3000)
+npm run build          # Production build
+npm run typecheck      # tsc --noEmit (type check without emitting)
+npm run lint           # ESLint
+npm run test           # Vitest unit tests
+npm run test:coverage  # Coverage report
+```
+
+---
+
+## Testing
+
+Unit test coverage targets `lib/` — the deterministic diff engine:
+
+| Module | Key test cases |
+|---|---|
+| `lib/diff/lcs.ts` | Myers algorithm, backtrack, all edge cases |
+| `lib/diff/documentDiff.ts` | Added / removed / modified / format-only, count integrity, view stamping |
+| `lib/diff/inlineDiff.ts` | Word-level segments, empty inputs, adjacent merging |
+| `lib/diff/formatDiff.ts` | All 11 formatting properties, multi-change detection |
+| `lib/diff/metadataDiff.ts` | Filename, title, author, revision changes; null handling |
+| `lib/diff/threeWayDiff.ts` | View stamping, allChanges union, ID uniqueness |
+
+```bash
+npm run test           # Run all tests
+npm run test:coverage  # Coverage report (target: >80% on lib/)
 ```
 
 ---
 
 ## Deployment (Vercel)
 
-1. Push the repository to GitHub.
+1. Push the repository to GitHub (already done).
 2. Import the project at [vercel.com/new](https://vercel.com/new).
 3. Add the required environment variable:
 
@@ -65,62 +122,36 @@ npm run typecheck     # tsc --noEmit
 |---|---|
 | `ANTHROPIC_API_KEY` | Anthropic API key — obtain from [console.anthropic.com](https://console.anthropic.com) |
 
-4. Deploy. Vercel detects Next.js automatically — no build configuration required.
+4. Deploy. Vercel detects Next.js automatically — no build configuration needed.
+
+> **Note:** The `/api/chat` route uses streaming (`ReadableStream`). This is fully supported on Vercel's Node.js and Edge runtimes.
 
 ---
 
-## Technical decisions
+## Technical Decisions
 
-### Why is change detection deterministic, not AI-based?
+### Deterministic change detection
 
 The diff engine implements the **Myers Longest Common Subsequence algorithm** over the paragraph array extracted from the Word XML (`word/document.xml`). This guarantees:
 
-- **Zero false negatives** on paragraph-level text changes — if a word changed, it will be detected.
-- **Reproducible results** — running the same two files always produces the same output.
-- **No hallucination risk** in the detection layer — Claude is invoked only for the plain-English summary, never for the detection itself.
+- **Zero false negatives** — if a paragraph changed, it will be detected.
+- **Reproducible results** — the same files always produce the same output.
+- **No hallucination risk in detection** — Claude is invoked only for interpretation, never detection.
 
-The AI summary layer is explicitly non-authoritative. It characterises what the algorithm already found; it does not perform independent analysis.
+### AI is interpretation-only
 
-### Why does document content stay client-side?
+The agent receives a structured list of already-detected changes and answers four questions for each: *how significant is this? why does it matter? where exactly? what else is related?* It cannot add or remove changes from the list.
 
-Parsing and diffing run in the browser via the [File API](https://developer.mozilla.org/en-US/docs/Web/API/File_API). The server-side `/api/summarize` route receives only:
+### Why OOXML parsing over mammoth for structure
 
-```json
-{
-  "changes": [{ "type": "modified", "category": "content", "summary": "..." }],
-  "totalChanges": 7,
-  "contentChanges": 5,
-  "formattingChanges": 2
-}
-```
+mammoth.js converts `.docx` to HTML/plain-text and discards structural metadata (paragraph styles, indentation, run-level formatting). DocDiff needs that metadata to detect formatting-only changes, so it parses `word/document.xml` directly via JSZip + DOMParser. mammoth is used only for `rawText` extraction (plain-text context).
 
-Raw paragraph text never leaves the browser. This is important for legal and compliance use cases where document content is confidential.
+### Streaming chat
 
-### Why Myers LCS over a library?
+`/api/chat` returns a `ReadableStream` and the `useChat` hook consumes it token by token, appending each chunk to the last assistant message. This produces a typewriter effect and lets the UI render the response before it's complete — important for longer answers about complex diffs.
 
-- **Bundle size**: no external diff library in the client bundle.
-- **Control**: the diff algorithm is tailored to paragraph arrays, not line-based text files. The backtrack step is customised to produce edit pairs that can be merged into `modified` records (adjacent `removed`+`added` pairs become a single change with an inline word diff).
-- **Testability**: the pure-function implementation (`lcs.ts`, `documentDiff.ts`) is trivially unit-testable with Vitest.
+### Why Myers LCS instead of a library
 
-### Why OOXML parsing instead of mammoth for structure?
-
-mammoth.js converts `.docx` to HTML/plain-text and intentionally discards structural metadata (paragraph styles, indent values, run-level formatting). DocDiff needs that metadata to detect formatting-only changes, so it parses `word/document.xml` directly via JSZip + DOMParser using the `http://schemas.openxmlformats.org/wordprocessingml/2006/main` namespace. mammoth is used solely for `rawText` extraction.
-
----
-
-## Testing
-
-```bash
-npm run test
-```
-
-Unit test coverage targets `lib/` — the deterministic diff engine:
-
-| Module | Coverage |
-|---|---|
-| `lib/diff/lcs.ts` | Myers algorithm, backtrack, all edge cases |
-| `lib/diff/documentDiff.ts` | Add / remove / modify / format detection, count integrity |
-| `lib/diff/inlineDiff.ts` | Word-level segment generation, empty inputs |
-| `lib/diff/formatDiff.ts` | All 11 formatting properties, multi-change detection |
-
-No E2E tests are included for v1. The deterministic core is fully covered by unit tests; the UI layer is tested manually with the included `test-original.docx` / `test-changed.docx` files.
+- **Bundle size:** no external diff library in the client bundle.
+- **Control:** the algorithm is tailored to paragraph arrays (not line-based text files). The backtrack step produces edit pairs that collapse adjacent `removed` + `added` ops into a single `modified` record with an inline word diff.
+- **Testability:** pure functions with no side effects are trivially unit-testable.
