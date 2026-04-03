@@ -145,7 +145,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     parsed = JSON.parse(cleaned);
   } catch {
     return NextResponse.json(
-      { error: 'Failed to parse agent response as JSON' },
+      { error: `Failed to parse agent response as JSON. Raw (first 500 chars): ${cleaned.slice(0, 500)}` },
       { status: 502 }
     );
   }
