@@ -15,7 +15,7 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "DocDiff",
-  description: "Compare two Word documents with deterministic diff analysis",
+  description: "Three-document contract comparison with deterministic diff and AI analysis",
 };
 
 export default function RootLayout({

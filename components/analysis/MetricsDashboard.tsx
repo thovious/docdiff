@@ -21,12 +21,12 @@ function MetricCard({ title, value, sub, textClass, bgClass, iconPath, highlight
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
-            <p className="text-xs font-medium text-muted-foreground sm:text-sm">{title}</p>
-            <p className={`mt-1 text-2xl font-bold sm:text-3xl ${textClass}`}>{value}</p>
+            <p className="text-xs font-medium text-muted-foreground">{title}</p>
+            <p className={`mt-1 text-2xl font-bold ${textClass}`}>{value}</p>
             {sub && <p className="mt-0.5 truncate text-xs text-muted-foreground">{sub}</p>}
           </div>
           <div className={`shrink-0 rounded-lg p-2 ${bgClass}`}>
-            <svg className={`h-4 w-4 sm:h-5 sm:w-5 ${textClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className={`h-4 w-4 ${textClass}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={iconPath} />
             </svg>
           </div>
@@ -37,21 +37,20 @@ function MetricCard({ title, value, sub, textClass, bgClass, iconPath, highlight
 }
 
 /**
- * Four summary metric cards: total changes, content, formatting, and status.
+ * Summary metric cards for a single comparison view.
  *
- * @param result - The {@link DiffResult} from the diff engine.
+ * @param result - The {@link DiffResult} for the active view.
  */
 export function MetricsDashboard({ result }: MetricsDashboardProps) {
-  const { totalChanges, contentChanges, formattingChanges, addedCount, removedCount, modifiedCount } = result;
-
+  const { totalChanges, contentChanges, formattingChanges, metadataChanges, addedCount, removedCount, modifiedCount } = result;
   const isIdentical = totalChanges === 0;
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <MetricCard
         title="Total Changes"
         value={totalChanges}
-        sub={isIdentical ? 'Documents are identical' : `across ${totalChanges} paragraph${totalChanges !== 1 ? 's' : ''}`}
+        sub={isIdentical ? 'Documents are identical' : `${totalChanges} change${totalChanges !== 1 ? 's' : ''}`}
         textClass={isIdentical ? 'text-green-600' : 'text-blue-600'}
         bgClass={isIdentical ? 'bg-green-100' : 'bg-blue-100'}
         iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
@@ -74,12 +73,12 @@ export function MetricsDashboard({ result }: MetricsDashboardProps) {
         iconPath="M4 6h16M4 12h8m-8 6h16"
       />
       <MetricCard
-        title="Documents"
-        value="✓"
-        sub="Both parsed"
-        textClass="text-green-600"
-        bgClass="bg-green-100"
-        iconPath="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+        title="Metadata"
+        value={metadataChanges}
+        sub="filename / author / revision"
+        textClass="text-purple-600"
+        bgClass="bg-purple-100"
+        iconPath="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
       />
     </div>
   );

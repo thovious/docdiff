@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import mammoth from 'mammoth';
 import type { ParsedDoc, ParagraphNode, RunFormat } from './types';
+import { extractMetadata } from './metadataExtractor';
 
 // Word XML namespace prefix used throughout OOXML.
 const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
@@ -23,6 +24,8 @@ export async function parseDocx(file: File): Promise<ParsedDoc> {
     mammoth.extractRawText({ arrayBuffer }),
   ]);
 
+  const metadata = await extractMetadata(file, zip);
+
   const xmlEntry = zip.file('word/document.xml');
   if (!xmlEntry) {
     throw new Error(`word/document.xml not found in ${file.name}`);
@@ -40,6 +43,7 @@ export async function parseDocx(file: File): Promise<ParsedDoc> {
     paragraphs,
     rawText: mammothResult.value,
     filename: file.name,
+    metadata,
   };
 }
 

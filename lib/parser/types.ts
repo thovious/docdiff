@@ -37,6 +37,26 @@ export interface ParagraphNode {
 }
 
 /**
+ * Document-level metadata extracted from docProps/core.xml.
+ */
+export interface DocMetadata {
+  /** Original filename of the uploaded file (File.name). */
+  filename: string;
+  /** dc:title */
+  title: string | null;
+  /** dc:creator */
+  author: string | null;
+  /** cp:lastModifiedBy */
+  lastModifiedBy: string | null;
+  /** dcterms:created */
+  createdAt: string | null;
+  /** dcterms:modified */
+  modifiedAt: string | null;
+  /** cp:revision */
+  revision: string | null;
+}
+
+/**
  * The full parsed representation of a .docx file.
  */
 export interface ParsedDoc {
@@ -45,4 +65,6 @@ export interface ParsedDoc {
   rawText: string;
   /** Original filename of the uploaded file. */
   filename: string;
+  /** Document metadata extracted from docProps/core.xml. */
+  metadata: DocMetadata;
 }

@@ -18,16 +18,23 @@ describe('Type definitions', () => {
   });
 
   it('ParsedDoc shape is correct', () => {
-    const doc: ParsedDoc = { paragraphs: [], rawText: '', filename: 'test.docx' };
+    const doc: ParsedDoc = {
+      paragraphs: [],
+      rawText: '',
+      filename: 'test.docx',
+      metadata: { filename: 'test.docx', title: null, author: null, lastModifiedBy: null, createdAt: null, modifiedAt: null, revision: null },
+    };
     expect(doc.filename).toBe('test.docx');
   });
 
   it('DiffResult defaults to zero counts', () => {
     const result: DiffResult = {
+      view: 'tmpl-v1',
       changes: [],
       totalChanges: 0,
       contentChanges: 0,
       formattingChanges: 0,
+      metadataChanges: 0,
       addedCount: 0,
       removedCount: 0,
       modifiedCount: 0,

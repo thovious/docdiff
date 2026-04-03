@@ -2,15 +2,15 @@
 
 import { useState, useCallback } from 'react';
 import { parseDocx } from '@/lib/parser/docxParser';
-import { documentDiff } from '@/lib/diff/documentDiff';
-import { fetchSummary } from '@/lib/api/summarize';
-import type { DiffResult, InsightSummary } from '@/lib/diff/types';
+import { threeWayDiff } from '@/lib/diff/threeWayDiff';
+import type { ThreeWayDiffResult } from '@/lib/diff/types';
+import type { AnalysisResult } from '@/lib/agent/types';
 
 export type AnalysisStatus =
   | 'idle'
   | 'parsing'
   | 'diffing'
-  | 'summarizing'
+  | 'analyzing'
   | 'done'
   | 'error';
 
@@ -19,11 +19,11 @@ export interface DocxAnalysisState {
   /** 0–100 */
   progress: number;
   progressLabel: string;
-  result: DiffResult | null;
-  insight: InsightSummary | null;
+  threeWayDiff: ThreeWayDiffResult | null;
+  analysisResult: AnalysisResult | null;
   error: string | null;
-  /** Start a new analysis. Calling this while a previous analysis is running resets and restarts. */
-  analyze: (origFile: File, changedFile: File) => Promise<void>;
+  /** Start a full three-document analysis pipeline. */
+  analyze: (template: File, v1: File, v2: File) => Promise<void>;
   /** Reset all state back to idle. */
   reset: () => void;
 }
@@ -32,125 +32,120 @@ const IDLE_STATE = {
   status: 'idle' as AnalysisStatus,
   progress: 0,
   progressLabel: '',
-  result: null,
-  insight: null,
+  threeWayDiff: null,
+  analysisResult: null,
   error: null,
 };
 
 /**
- * Orchestrate the full DocDiff analysis pipeline.
+ * Orchestrate the full DocDiff v2 analysis pipeline for three documents.
  *
- * Phases and progress milestones:
- * - Parsing (0 → 40): Parse both .docx files via {@link parseDocx}.
- * - Diffing (40 → 70): Run {@link documentDiff} over the parsed documents.
- * - Summarizing (70 → 90): Call /api/summarize with the change list.
- * - Done (100): All phases complete.
- *
- * All data fetching and orchestration lives here. Components receive data
- * via props or context — they never call the API or parsers directly.
+ * Progress milestones:
+ *  5%  — Reading document files
+ * 20%  — Parsing Template structure
+ * 35%  — Parsing V1 structure
+ * 50%  — Parsing V2 structure
+ * 65%  — Running three-way diff
+ * 78%  — Sending to analysis agent
+ * 95%  — Processing agent response
+ * 100% — Complete
  *
  * @returns A {@link DocxAnalysisState} object with state and control functions.
  */
 export function useDocxAnalysis(): DocxAnalysisState {
   const [status, setStatus] = useState<AnalysisStatus>('idle');
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgressVal] = useState(0);
   const [progressLabel, setProgressLabel] = useState('');
-  const [result, setResult] = useState<DiffResult | null>(null);
-  const [insight, setInsight] = useState<InsightSummary | null>(null);
+  const [diffResult, setDiffResult] = useState<ThreeWayDiffResult | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const setProgress = useCallback((pct: number, label: string) => {
+    setProgressVal(pct);
+    setProgressLabel(label);
+  }, []);
 
   const reset = useCallback(() => {
     setStatus('idle');
-    setProgress(0);
+    setProgressVal(0);
     setProgressLabel('');
-    setResult(null);
-    setInsight(null);
+    setDiffResult(null);
+    setAnalysisResult(null);
     setError(null);
   }, []);
 
   const analyze = useCallback(
-    async (origFile: File, changedFile: File): Promise<void> => {
-      // Reset before every run so calling analyze() twice is idempotent.
-      setStatus('idle');
-      setProgress(0);
-      setProgressLabel('');
-      setResult(null);
-      setInsight(null);
-      setError(null);
+    async (template: File, v1: File, v2: File): Promise<void> => {
+      reset();
 
       try {
-        // ── Phase 1: Parse ────────────────────────────────────────────────
+        // ── Parsing ───────────────────────────────────────────────────────
         setStatus('parsing');
-        setProgress(5);
-        setProgressLabel('Parsing original document…');
+        setProgress(5, 'Reading document files…');
 
-        const origDoc = await parseDocx(origFile);
+        setProgress(20, 'Parsing Template structure…');
+        const parsedTemplate = await parseDocx(template);
 
-        setProgress(20);
-        setProgressLabel('Parsing changed document…');
+        setProgress(35, 'Parsing V1 structure…');
+        const parsedV1 = await parseDocx(v1);
 
-        const changedDoc = await parseDocx(changedFile);
+        setProgress(50, 'Parsing V2 structure…');
+        const parsedV2 = await parseDocx(v2);
 
-        setProgress(40);
-        setProgressLabel('Documents parsed.');
-
-        // ── Phase 2: Diff ─────────────────────────────────────────────────
+        // ── Diffing ───────────────────────────────────────────────────────
         setStatus('diffing');
-        setProgress(45);
-        setProgressLabel('Running diff algorithm…');
+        setProgress(65, 'Running three-way diff…');
 
-        const diffResult = documentDiff(origDoc, changedDoc);
+        const diff = threeWayDiff(parsedTemplate, parsedV1, parsedV2);
+        setDiffResult(diff);
 
-        setProgress(70);
-        setProgressLabel(`Found ${diffResult.totalChanges} change${diffResult.totalChanges !== 1 ? 's' : ''}.`);
-        setResult(diffResult);
+        // ── Agent analysis ────────────────────────────────────────────────
+        setStatus('analyzing');
+        setProgress(78, 'Sending to analysis agent…');
 
-        // ── Phase 3: Summarize ────────────────────────────────────────────
-        setStatus('summarizing');
-        setProgress(75);
-        setProgressLabel('Generating AI summary…');
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            diff,
+            documentNames: {
+              template: template.name,
+              v1: v1.name,
+              v2: v2.name,
+            },
+          }),
+        });
 
-        let insightResult: InsightSummary;
-        try {
-          insightResult = await fetchSummary(diffResult);
-        } catch {
-          // AI summary failure is non-fatal — degrade gracefully.
-          insightResult = {
-            summary:
-              diffResult.totalChanges === 0
-                ? 'The documents are identical — no changes were detected.'
-                : `${diffResult.totalChanges} change${diffResult.totalChanges !== 1 ? 's' : ''} detected: ${diffResult.contentChanges} content and ${diffResult.formattingChanges} formatting.`,
-            confidence: 'medium',
-          };
+        setProgress(95, 'Processing agent response…');
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({ error: 'Unknown error' }));
+          throw new Error(err.error ?? `API returned ${response.status}`);
         }
 
-        setInsight(insightResult);
-        setProgress(100);
-        setProgressLabel('Analysis complete.');
+        const analysis: AnalysisResult = await response.json();
+        setAnalysisResult(analysis);
+
+        setProgress(100, 'Analysis complete');
         setStatus('done');
       } catch (err) {
         const message =
           err instanceof Error ? err.message : 'An unexpected error occurred.';
         setError(message);
         setStatus('error');
-        setProgress(0);
-        setProgressLabel('');
       }
     },
-    []
+    [reset, setProgress]
   );
 
   return {
     status,
     progress,
     progressLabel,
-    result,
-    insight,
+    threeWayDiff: diffResult,
+    analysisResult,
     error,
     analyze,
     reset,
   };
 }
-
-// Re-export for convenience
-export { IDLE_STATE };

@@ -2,7 +2,7 @@ import { buildLCSMatrix, backtrack } from './lcs';
 import { inlineDiff } from './inlineDiff';
 import { formatDiff } from './formatDiff';
 import type { ParsedDoc } from '../parser/types';
-import type { ChangeRecord, DiffResult } from './types';
+import type { ChangeRecord, ComparisonView, DiffResult } from './types';
 
 /**
  * Compare two parsed documents and produce a complete {@link DiffResult}.
@@ -17,11 +17,13 @@ import type { ChangeRecord, DiffResult } from './types';
  *
  * @param origDoc - The parsed original document.
  * @param changedDoc - The parsed changed document.
+ * @param view - Which comparison view this diff belongs to.
  * @returns A {@link DiffResult} with all detected changes and aggregate counts.
  */
 export function documentDiff(
   origDoc: ParsedDoc,
-  changedDoc: ParsedDoc
+  changedDoc: ParsedDoc,
+  view: ComparisonView
 ): DiffResult {
   const origParas = origDoc.paragraphs;
   const changedParas = changedDoc.paragraphs;
@@ -48,6 +50,7 @@ export function documentDiff(
           id: `format-${op.aIdx}-${op.bIdx}`,
           type: 'format',
           category: 'formatting',
+          view,
           location: `Paragraph ${op.aIdx + 1}`,
           summary: `Formatting changed: ${fmtDetails[0]}${fmtDetails.length > 1 ? ` (+${fmtDetails.length - 1} more)` : ''}`,
           origText: orig.text,
@@ -64,6 +67,7 @@ export function documentDiff(
         id: `removed-${op.aIdx}-`,
         type: 'removed',
         category: 'content',
+        view,
         location: `Paragraph ${op.aIdx + 1}`,
         summary: truncate(`Removed: "${orig.text}"`, 120),
         origText: orig.text,
@@ -80,6 +84,7 @@ export function documentDiff(
         id: `added--${op.bIdx}`,
         type: 'added',
         category: 'content',
+        view,
         location: `Paragraph ${op.bIdx + 1}`,
         summary: truncate(`Added: "${ch.text}"`, 120),
         origText: '',
@@ -119,10 +124,12 @@ export function documentDiff(
   }
 
   return {
+    view,
     changes: merged,
     totalChanges: merged.length,
     contentChanges,
     formattingChanges,
+    metadataChanges: 0,
     addedCount,
     removedCount,
     modifiedCount,
@@ -156,6 +163,7 @@ function mergeModified(changes: ChangeRecord[]): ChangeRecord[] {
         id: `modified-${cur.origIndex}-${next.changedIndex}`,
         type: 'modified',
         category: 'content',
+        view: cur.view,
         location: `Paragraph ${cur.origIndex + 1}`,
         summary: truncate(`Modified: "${cur.origText}" → "${next.changedText}"`, 120),
         origText: cur.origText,

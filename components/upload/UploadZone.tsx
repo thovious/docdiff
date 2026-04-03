@@ -5,34 +5,33 @@ import { useRef, useState, useCallback } from 'react';
 interface UploadZoneProps {
   label: string;
   file: File | null;
-  onFile: (f: File) => void;
+  onFile: (f: File | null) => void;
+  error?: string | null;
   disabled?: boolean;
 }
 
 /**
  * Drag-and-drop file upload zone that accepts only .docx files.
  *
- * @param label - Descriptive label shown above the drop area.
+ * @param label - Descriptive label shown above the drop area (e.g. "Template").
  * @param file - Currently selected file, or null.
- * @param onFile - Callback invoked with a valid .docx File.
+ * @param onFile - Callback invoked with the File when a valid file is selected, or null to clear.
+ * @param error - External validation error message to display.
  * @param disabled - When true, interaction is blocked.
  */
-export function UploadZone({ label, file, onFile, disabled = false }: UploadZoneProps) {
+export function UploadZone({ label, file, onFile, error, disabled = false }: UploadZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const validate = useCallback(
-    (f: File): boolean => {
-      if (!f.name.toLowerCase().endsWith('.docx')) {
-        setValidationError('Only .docx files are supported.');
-        return false;
-      }
-      setValidationError(null);
-      return true;
-    },
-    []
-  );
+  const validate = useCallback((f: File): boolean => {
+    if (!f.name.toLowerCase().endsWith('.docx')) {
+      setLocalError('Only .docx files are supported.');
+      return false;
+    }
+    setLocalError(null);
+    return true;
+  }, []);
 
   const handleFile = useCallback(
     (f: File) => {
@@ -45,7 +44,7 @@ export function UploadZone({ label, file, onFile, disabled = false }: UploadZone
     e.preventDefault();
     if (!disabled) {
       setDragging(true);
-      setValidationError(null);
+      setLocalError(null);
     }
   };
 
@@ -62,18 +61,19 @@ export function UploadZone({ label, file, onFile, disabled = false }: UploadZone
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = e.target.files?.[0];
     if (picked) handleFile(picked);
-    // Reset so same file can be re-selected
     e.target.value = '';
   };
 
+  const displayError = localError ?? error;
+
   const baseClasses =
-    'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 sm:p-8 text-center transition-colors cursor-pointer select-none min-h-[120px]';
+    'relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-colors cursor-pointer select-none min-h-[140px]';
 
   const stateClasses = disabled
     ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
     : dragging
     ? 'border-blue-400 bg-blue-50'
-    : validationError
+    : displayError
     ? 'border-red-400 bg-red-50'
     : file
     ? 'border-green-400 bg-green-50'
@@ -81,9 +81,8 @@ export function UploadZone({ label, file, onFile, disabled = false }: UploadZone
 
   return (
     <div className="flex flex-col gap-2">
-      <span className="text-sm font-medium text-gray-700">{label}</span>
+      <span className="text-sm font-semibold text-gray-700">{label}</span>
 
-      {/* Drop zone */}
       <div
         className={`${baseClasses} ${stateClasses}`}
         onDragOver={onDragOver}
@@ -120,14 +119,14 @@ export function UploadZone({ label, file, onFile, disabled = false }: UploadZone
                 d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
             </svg>
             <span className="text-sm font-medium text-gray-600">
-              {dragging ? 'Drop it here' : 'Drop a .docx file or click to browse'}
+              {dragging ? 'Drop it here' : 'Drop a .docx or click to browse'}
             </span>
           </>
         )}
       </div>
 
-      {validationError && (
-        <p className="text-xs text-red-600">{validationError}</p>
+      {displayError && (
+        <p className="text-xs text-red-600">{displayError}</p>
       )}
     </div>
   );

@@ -30,24 +30,35 @@ function makeDoc(texts: string[], overridesList: Partial<ParagraphNode>[] = []):
     paragraphs: texts.map((t, i) => makePara(i, t, overridesList[i] ?? {})),
     rawText: texts.join('\n'),
     filename: 'test.docx',
+    metadata: {
+      filename: 'test.docx',
+      title: null,
+      author: null,
+      lastModifiedBy: null,
+      createdAt: null,
+      modifiedAt: null,
+      revision: null,
+    },
   };
 }
 
 describe('documentDiff', () => {
   it('returns zero changes for identical documents', () => {
     const doc = makeDoc(['Hello', 'World']);
-    const result = documentDiff(doc, doc);
+    const result = documentDiff(doc, doc, 'tmpl-v1');
     expect(result.totalChanges).toBe(0);
     expect(result.changes).toHaveLength(0);
+    expect(result.view).toBe('tmpl-v1');
   });
 
   it('detects an added paragraph', () => {
     const orig = makeDoc(['Hello']);
     const changed = makeDoc(['Hello', 'New paragraph']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     const added = result.changes.filter((c) => c.type === 'added');
     expect(added).toHaveLength(1);
     expect(added[0].changedText).toBe('New paragraph');
+    expect(added[0].view).toBe('tmpl-v1');
     expect(result.addedCount).toBe(1);
     expect(result.contentChanges).toBe(1);
   });
@@ -55,7 +66,7 @@ describe('documentDiff', () => {
   it('detects a removed paragraph', () => {
     const orig = makeDoc(['Hello', 'Goodbye']);
     const changed = makeDoc(['Hello']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'v1-v2');
     const removed = result.changes.filter((c) => c.type === 'removed');
     expect(removed).toHaveLength(1);
     expect(removed[0].origText).toBe('Goodbye');
@@ -65,7 +76,7 @@ describe('documentDiff', () => {
   it('detects a modified paragraph and populates inlineDiff', () => {
     const orig = makeDoc(['The quick brown fox']);
     const changed = makeDoc(['The slow brown fox']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v2');
     const modified = result.changes.filter((c) => c.type === 'modified');
     expect(modified).toHaveLength(1);
     expect(modified[0].inlineDiff.length).toBeGreaterThan(0);
@@ -77,7 +88,7 @@ describe('documentDiff', () => {
   it('detects a format-only change', () => {
     const orig = makeDoc(['Same text'], [{ style: 'Normal' }]);
     const changed = makeDoc(['Same text'], [{ style: 'Heading1' }]);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     const format = result.changes.filter((c) => c.type === 'format');
     expect(format).toHaveLength(1);
     expect(format[0].formatDetails.length).toBeGreaterThan(0);
@@ -86,14 +97,14 @@ describe('documentDiff', () => {
 
   it('handles both documents empty', () => {
     const doc = makeDoc([]);
-    const result = documentDiff(doc, doc);
+    const result = documentDiff(doc, doc, 'tmpl-v1');
     expect(result.totalChanges).toBe(0);
   });
 
   it('handles original empty (all paragraphs added)', () => {
     const orig = makeDoc([]);
     const changed = makeDoc(['A', 'B', 'C']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     expect(result.addedCount).toBe(3);
     expect(result.totalChanges).toBe(3);
   });
@@ -101,14 +112,14 @@ describe('documentDiff', () => {
   it('handles changed empty (all paragraphs removed)', () => {
     const orig = makeDoc(['A', 'B', 'C']);
     const changed = makeDoc([]);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     expect(result.removedCount).toBe(3);
   });
 
   it('change IDs are deterministic and unique', () => {
     const orig = makeDoc(['A', 'B', 'C']);
     const changed = makeDoc(['A', 'X', 'C']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     const ids = result.changes.map((c) => c.id);
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
@@ -117,9 +128,9 @@ describe('documentDiff', () => {
   it('counts are consistent with changes array', () => {
     const orig = makeDoc(['A', 'B', 'C']);
     const changed = makeDoc(['A', 'B modified', 'D', 'E']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     expect(result.totalChanges).toBe(result.changes.length);
-    expect(result.contentChanges + result.formattingChanges).toBe(result.totalChanges);
+    expect(result.contentChanges + result.formattingChanges + result.metadataChanges).toBe(result.totalChanges);
     expect(result.addedCount + result.removedCount + result.modifiedCount + result.formattingChanges)
       .toBe(result.totalChanges);
   });
@@ -127,7 +138,7 @@ describe('documentDiff', () => {
   it('modified record has location from origIndex', () => {
     const orig = makeDoc(['para one', 'para two']);
     const changed = makeDoc(['para one', 'para two CHANGED']);
-    const result = documentDiff(orig, changed);
+    const result = documentDiff(orig, changed, 'tmpl-v1');
     const mod = result.changes.find((c) => c.type === 'modified');
     expect(mod?.location).toBe('Paragraph 2');
   });
