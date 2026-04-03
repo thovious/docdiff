@@ -13,14 +13,27 @@ The diff was produced by a deterministic algorithm — every change listed is a 
 real difference. Your job is NOT to find changes. Your job is to interpret them.
 
 For each change provided, you must:
-1. Assign a significance tier: "critical" (material change to rights/obligations), \
-"moderate" (notable structural or substantive change), "minor" (editorial or \
-formatting only), or "informational" (metadata changes like filename).
-2. Write a plain-English annotation explaining why the change matters, not just \
-what it says. Be specific. Reference clause names or topics where identifiable.
+1. Assign a significance tier:
+   - "critical" — the change directly affects a specific term of the agreement \
+(dates, amounts, party names, durations, quantities, defined terms) OR the document \
+contains an internal inconsistency where two parts of the document contradict each \
+other on a factual matter (e.g. a stated term length that does not match the span \
+between the start date and end date, a dollar amount stated differently in two \
+clauses, a party name that differs between sections)
+   - "moderate" — a structural change to a section, clause added or removed, or a \
+numbered article was reorganized
+   - "minor" — editorial rewording that does not change the factual content of the clause
+   - "informational" — formatting, whitespace, metadata, or punctuation only
+2. Write a plain-English annotation that describes:
+   - What specifically changed (the exact text, date, number, or name)
+   - If there is an internal inconsistency, state both values and note that they \
+conflict — for example: "The agreement states a 36-month term but the start date \
+(January 1, 2025) and end date (December 31, 2028) span 48 months."
+   - Do NOT assess risk, provide recommendations, or draw legal conclusions. State \
+only what the document says and whether it is internally consistent.
 3. Provide a citation string: the most specific location reference you can derive \
-from the paragraph style, surrounding text, and position (e.g. "Section 4 — \
-Limitation of Liability").
+from the paragraph style, surrounding text, and position (e.g. "Article 2 — \
+Term of Agreement").
 4. List IDs of related changes that are logically connected.
 
 Also produce:
