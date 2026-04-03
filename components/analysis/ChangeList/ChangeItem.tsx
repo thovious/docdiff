@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { ChangeRecord } from '@/lib/diff/types';
-import type { ChangeAnnotation } from '@/lib/agent/types';
+import type { ChangeAnnotation, SignificanceTier } from '@/lib/agent/types';
 import { SignificanceBadge } from './SignificanceBadge';
 import { DiffBlock } from './DiffBlock';
 
@@ -20,9 +20,25 @@ const TYPE_BADGE: Record<string, string> = {
   metadata: 'bg-purple-100 text-purple-800',
 };
 
+/** Left border accent + optional background tint per tier. */
+const TIER_CARD: Record<SignificanceTier, string> = {
+  critical:      'border-l-[3px] border-l-red-500 bg-red-50/30',
+  moderate:      'border-l-[3px] border-l-amber-400',
+  minor:         '',
+  informational: '',
+};
+
+/** Summary text color — muted for low-signal changes. */
+const TIER_SUMMARY_TEXT: Record<SignificanceTier, string> = {
+  critical:      'text-gray-900',
+  moderate:      'text-gray-900',
+  minor:         'text-gray-500',
+  informational: 'text-gray-500',
+};
+
 /**
- * Expandable change record row with significance badge, agent annotation,
- * and inline diff display.
+ * Expandable change record row with tier-based card styling, significance badge,
+ * agent annotation, and inline diff display.
  *
  * @param change - The change record to display.
  * @param annotation - The agent-generated annotation for this change, if available.
@@ -31,15 +47,17 @@ const TYPE_BADGE: Record<string, string> = {
 export function ChangeItem({ change, annotation, onRelatedClick }: ChangeItemProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const tier = annotation?.significance ?? 'informational';
+  const tier: SignificanceTier = annotation?.significance ?? 'informational';
   const typeBadge = TYPE_BADGE[change.type] ?? 'bg-gray-100 text-gray-600';
+  const cardClass = TIER_CARD[tier];
+  const summaryTextClass = TIER_SUMMARY_TEXT[tier];
 
   return (
     <div
       id={`change-${change.id}`}
-      className="rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+      className={`rounded-lg border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md overflow-hidden ${cardClass}`}
     >
-      {/* Collapsed header — always visible */}
+      {/* Collapsed header */}
       <button
         onClick={() => setExpanded((v) => !v)}
         className="flex w-full items-start gap-3 p-4 text-left"
@@ -53,10 +71,10 @@ export function ChangeItem({ change, annotation, onRelatedClick }: ChangeItemPro
         </div>
 
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-gray-900 leading-snug">{change.summary}</p>
-          <p className="mt-0.5 text-xs text-gray-500">{change.location}</p>
+          <p className={`text-sm font-medium leading-snug ${summaryTextClass}`}>{change.summary}</p>
+          <p className="mt-0.5 text-xs text-gray-400">{change.location}</p>
           {annotation?.citation && (
-            <p className="mt-0.5 truncate text-xs text-blue-600 italic">{annotation.citation}</p>
+            <p className="mt-0.5 truncate text-xs text-blue-500 italic">{annotation.citation}</p>
           )}
         </div>
 
@@ -74,9 +92,14 @@ export function ChangeItem({ change, annotation, onRelatedClick }: ChangeItemPro
           <DiffBlock change={change} />
 
           {annotation?.annotation && (
-            <div className="rounded-md bg-gray-50 p-3 text-sm text-gray-700">
-              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Analysis</p>
-              {annotation.annotation}
+            <div className="rounded-md bg-gray-50 px-3 py-3 text-sm text-gray-700 shadow-inner">
+              <p className="mb-1.5 text-xs text-gray-400">
+                <span className="font-semibold">Analysis:</span>
+              </p>
+              <p className="leading-relaxed">{annotation.annotation}</p>
+              {annotation.citation && (
+                <p className="mt-2 text-xs italic text-gray-400">{annotation.citation}</p>
+              )}
             </div>
           )}
 

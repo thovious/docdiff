@@ -5,7 +5,7 @@ import type { ThreeWayDiffResult, ComparisonView } from '@/lib/diff/types';
 import type { AnalysisResult } from '@/lib/agent/types';
 import { ComparisonTabs } from './ComparisonTabs';
 import { MetricsDashboard } from './MetricsDashboard';
-import { ExecutiveSummary } from './ExecutiveSummary';
+import { ExecutiveBrief } from './ExecutiveBrief';
 import { ChangeList } from './ChangeList/ChangeList';
 
 interface AnalysisViewProps {
@@ -15,14 +15,14 @@ interface AnalysisViewProps {
 }
 
 /**
- * Main results container: tabs, metrics, executive summary, and change list.
+ * Main results container: executive brief, tabs, metrics, and change list.
  *
  * @param diffResult - The three-way diff result.
  * @param analysisResult - The agent analysis result.
  * @param onReset - Callback to return to the upload panel.
  */
 export function AnalysisView({ diffResult, analysisResult, onReset }: AnalysisViewProps) {
-  const [activeView, setActiveView] = useState<ComparisonView>('tmpl-v2');
+  const [activeView, setActiveView] = useState<ComparisonView>('v1-v2');
 
   const activeResult =
     activeView === 'tmpl-v1'
@@ -49,8 +49,12 @@ export function AnalysisView({ diffResult, analysisResult, onReset }: AnalysisVi
         </button>
       </div>
 
-      {/* Executive summary */}
-      <ExecutiveSummary analysis={analysisResult} onPriorityClick={scrollToChange} />
+      {/* Executive brief — above tabs */}
+      <ExecutiveBrief
+        analysis={analysisResult}
+        allChanges={diffResult.allChanges}
+        onPriorityClick={scrollToChange}
+      />
 
       {/* View tabs */}
       <ComparisonTabs

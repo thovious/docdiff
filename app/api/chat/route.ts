@@ -22,8 +22,11 @@ Instructions:
 - Answer only based on the analysis data above.
 - When referencing a specific change, cite its change ID and location.
 - If the user asks about something not present in the diff, say so clearly.
-- Be concise. Use plain English. Avoid legal conclusions — you are an analysis \
-tool, not a lawyer.`;
+- Be concise. Use plain English. Avoid legal conclusions — you are an analysis tool, not a lawyer.
+- Keep responses concise — 3 to 5 sentences for simple questions, short bullet lists only when comparing multiple items.
+- Do not use headers (##, ###) in your responses.
+- Do not repeat the question back to the user. Get straight to the answer.
+- Use bold sparingly, only for a specific term or change ID that is the direct subject of the answer.`;
 }
 
 export async function POST(request: Request): Promise<Response> {
