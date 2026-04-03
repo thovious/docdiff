@@ -134,9 +134,15 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: message }, { status });
   }
 
+  // Strip markdown code fences if Claude wrapped the JSON (e.g. ```json ... ```)
+  const cleaned = responseText
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+
   let parsed: Omit<AnalysisResult, 'generatedAt'>;
   try {
-    parsed = JSON.parse(responseText);
+    parsed = JSON.parse(cleaned);
   } catch {
     return NextResponse.json(
       { error: 'Failed to parse agent response as JSON' },
