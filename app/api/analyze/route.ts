@@ -111,7 +111,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
-      max_tokens: 4096,
+      max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: userPrompt }],
     });
@@ -134,18 +134,16 @@ export async function POST(request: Request): Promise<NextResponse> {
     return NextResponse.json({ error: message }, { status });
   }
 
-  // Strip markdown code fences if Claude wrapped the JSON (e.g. ```json ... ```)
-  const cleaned = responseText
-    .replace(/^```(?:json)?\s*/i, '')
-    .replace(/\s*```$/, '')
-    .trim();
+  // Extract the outermost JSON object, handling markdown fences or preamble text.
+  const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+  const cleaned = jsonMatch ? jsonMatch[0] : responseText.trim();
 
   let parsed: Omit<AnalysisResult, 'generatedAt'>;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
     return NextResponse.json(
-      { error: `Failed to parse agent response as JSON. Raw (first 500 chars): ${cleaned.slice(0, 500)}` },
+      { error: 'Failed to parse agent response as JSON' },
       { status: 502 }
     );
   }
