@@ -91,18 +91,6 @@ export function ChangeItem({ change, annotation, onRelatedClick }: ChangeItemPro
         <div className="border-t border-gray-100 px-4 pb-4 pt-3 space-y-3">
           <DiffBlock change={change} />
 
-          {annotation?.annotation && (
-            <div className="rounded-md bg-gray-50 px-3 py-3 text-sm text-gray-700 shadow-inner">
-              <p className="mb-1.5 text-xs text-gray-400">
-                <span className="font-semibold">Analysis:</span>
-              </p>
-              <p className="leading-relaxed">{annotation.annotation}</p>
-              {annotation.citation && (
-                <p className="mt-2 text-xs italic text-gray-400">{annotation.citation}</p>
-              )}
-            </div>
-          )}
-
           {annotation?.relatedChangeIds && annotation.relatedChangeIds.length > 0 && (
             <div>
               <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">Related changes</p>

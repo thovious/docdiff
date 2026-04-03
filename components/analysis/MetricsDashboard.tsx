@@ -3,6 +3,7 @@ import type { DiffResult } from '@/lib/diff/types';
 
 interface MetricsDashboardProps {
   result: DiffResult;
+  onCardClick?: (filter: 'all' | 'content' | 'formatting' | 'metadata') => void;
 }
 
 interface MetricCardProps {
@@ -13,11 +14,15 @@ interface MetricCardProps {
   bgClass: string;
   iconPath: string;
   highlight?: boolean;
+  onClick?: () => void;
 }
 
-function MetricCard({ title, value, sub, textClass, bgClass, iconPath, highlight }: MetricCardProps) {
+function MetricCard({ title, value, sub, textClass, bgClass, iconPath, highlight, onClick }: MetricCardProps) {
   return (
-    <Card className={highlight ? 'border-green-200 bg-green-50/50' : ''}>
+    <Card
+      className={`transition-shadow hover:shadow-md ${onClick ? 'cursor-pointer' : ''} ${highlight ? 'border-green-200 bg-green-50/50' : ''}`}
+      onClick={onClick}
+    >
       <CardContent className="pt-6">
         <div className="flex items-start justify-between">
           <div className="min-w-0">
@@ -41,7 +46,7 @@ function MetricCard({ title, value, sub, textClass, bgClass, iconPath, highlight
  *
  * @param result - The {@link DiffResult} for the active view.
  */
-export function MetricsDashboard({ result }: MetricsDashboardProps) {
+export function MetricsDashboard({ result, onCardClick }: MetricsDashboardProps) {
   const { totalChanges, contentChanges, formattingChanges, metadataChanges, addedCount, removedCount, modifiedCount } = result;
   const isIdentical = totalChanges === 0;
 
@@ -55,6 +60,7 @@ export function MetricsDashboard({ result }: MetricsDashboardProps) {
         bgClass={isIdentical ? 'bg-green-100' : 'bg-blue-100'}
         iconPath="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
         highlight={isIdentical}
+        onClick={onCardClick ? () => onCardClick('all') : undefined}
       />
       <MetricCard
         title="Content"
@@ -63,6 +69,7 @@ export function MetricsDashboard({ result }: MetricsDashboardProps) {
         textClass="text-amber-600"
         bgClass="bg-amber-100"
         iconPath="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+        onClick={onCardClick ? () => onCardClick('content') : undefined}
       />
       <MetricCard
         title="Formatting"
@@ -71,6 +78,7 @@ export function MetricsDashboard({ result }: MetricsDashboardProps) {
         textClass="text-gray-600"
         bgClass="bg-gray-100"
         iconPath="M4 6h16M4 12h8m-8 6h16"
+        onClick={onCardClick ? () => onCardClick('formatting') : undefined}
       />
       <MetricCard
         title="Metadata"
@@ -79,6 +87,7 @@ export function MetricsDashboard({ result }: MetricsDashboardProps) {
         textClass="text-purple-600"
         bgClass="bg-purple-100"
         iconPath="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+        onClick={onCardClick ? () => onCardClick('metadata') : undefined}
       />
     </div>
   );

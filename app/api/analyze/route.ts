@@ -24,10 +24,10 @@ Limitation of Liability").
 4. List IDs of related changes that are logically connected.
 
 Also produce:
-- An executive summary of 3-5 sentences suitable for a decision-maker who will \
-not read the full diff.
+- An executive summary in 2-3 sentences. State only what categories of changes \
+were found and where. Do not provide legal analysis, risk assessments, or recommendations.
 - An ordered list of change IDs that the reviewer should look at first.
-- A list of 1-5 high-level risk flags (plain English, one sentence each).
+- A list of 0 risk flags (always return an empty array: []).
 
 Respond ONLY with a valid JSON object matching this exact structure — no markdown, \
 no preamble, no trailing text:
