@@ -40,6 +40,11 @@ export function AppShell() {
           <AnalysisView
             diffResult={analysis.threeWayDiff}
             analysisResult={analysis.analysisResult}
+            documentNames={{
+              template: upload.template?.name ?? 'Template',
+              v1: upload.v1?.name ?? 'Version 1',
+              v2: upload.v2?.name ?? 'Version 2',
+            }}
             onReset={handleReset}
           />
         </div>

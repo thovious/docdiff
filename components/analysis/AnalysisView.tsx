@@ -6,10 +6,12 @@ import type { AnalysisResult, SignificanceTier } from '@/lib/agent/types';
 import { ComparisonTabs } from './ComparisonTabs';
 import { MetricsDashboard } from './MetricsDashboard';
 import { ChangeList } from './ChangeList/ChangeList';
+import { ExportButton } from './ExportButton';
 
 interface AnalysisViewProps {
   diffResult: ThreeWayDiffResult;
   analysisResult: AnalysisResult;
+  documentNames: { template: string; v1: string; v2: string };
   onReset: () => void;
 }
 
@@ -57,7 +59,7 @@ function AccordionSection({ title, open, onToggle, children }: AccordionSectionP
  * @param analysisResult - The agent analysis result.
  * @param onReset - Callback to return to the upload panel.
  */
-export function AnalysisView({ diffResult, analysisResult, onReset }: AnalysisViewProps) {
+export function AnalysisView({ diffResult, analysisResult, documentNames, onReset }: AnalysisViewProps) {
   const [activeView, setActiveView] = useState<ComparisonView>('v1-v2');
   const [execOpen, setExecOpen] = useState(false);
   const [criticalOpen, setCriticalOpen] = useState(true);
@@ -102,12 +104,19 @@ export function AnalysisView({ diffResult, analysisResult, onReset }: AnalysisVi
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900">Analysis Results</h2>
-        <button
-          onClick={onReset}
-          className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-        >
-          New Analysis
-        </button>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            diffResult={diffResult}
+            analysisResult={analysisResult}
+            documentNames={documentNames}
+          />
+          <button
+            onClick={onReset}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            New Analysis
+          </button>
+        </div>
       </div>
 
       {/* Metric cards — clickable */}
