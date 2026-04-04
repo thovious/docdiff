@@ -61,8 +61,8 @@ function AccordionSection({ title, open, onToggle, children }: AccordionSectionP
  */
 export function AnalysisView({ diffResult, analysisResult, documentNames, onReset }: AnalysisViewProps) {
   const [activeView, setActiveView] = useState<ComparisonView>('v1-v2');
-  const [execOpen, setExecOpen] = useState(false);
-  const [criticalOpen, setCriticalOpen] = useState(true);
+  const [execOpen, setExecOpen] = useState(true);
+  const [criticalOpen, setCriticalOpen] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
   const [activeFilter, setActiveFilter] = useState<ActiveFilter>('all');
   const allChangesSectionRef = useRef<HTMLDivElement>(null);
