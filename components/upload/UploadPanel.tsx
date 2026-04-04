@@ -52,14 +52,19 @@ export function UploadPanel({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <UploadZone
-          label="Template"
-          file={template}
-          onFile={onTemplate}
-          error={errors.template}
-          disabled={isAnalyzing}
-        />
+      <div className="mb-4 flex justify-center">
+        <div className="w-full max-w-sm">
+          <UploadZone
+            label="Template"
+            file={template}
+            onFile={onTemplate}
+            error={errors.template}
+            disabled={isAnalyzing}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <UploadZone
           label="Version 1"
           file={v1}
